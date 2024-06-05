@@ -1,0 +1,159 @@
+Fine-tuning with LoRA and QLoRA
+In the constantly changing field of deep learning, it's crucial to adapt pre-trained models for specific tasks. However, fine-tuning large models comes with significant computational and memory requirements. This article explores Parameter Efficient Fine-tuning (PEFT) techniques, focusing on LoRA and QLoRA. These innovative approaches aim to enhance the efficiency of model adaptation.
+Parameter Efficient Finetuning :
+Parameter Efficient Finetuning (PEFT) is an approach to adapt large pre-trained models to specific tasks without updating all the model parameters. This method is particularly important for modern large-scale models, which can have billions of parameters. Finetuning such large models entirely can be computationally expensive, memory intensive, and slow. PEFT aims to address these issues by modifying only a small subset of the model’s parameters, resulting in several benefits:Reduce Computational Cose : Since only small fraction of parameter a updated,the overall computational load is significantly lowered.
+Memory Efficiency: By fine-tuning a smaller number of parameters, the memory footprint is reduced, which is essential when working with large models.
+Faster Training: Having fewer parameters to update can speed up the training process, enabling quick iterations and experimentation.
+Better Adaptability: PEFt allows the same pre-trained model to be adapted for multiple tasks without the need to retrain the entire model for each task.The Process of Fine-Tuning with PEFT :
+1.	Data Preparation : Begin by structuring your dataset in a way that suits your specific task. Define your inputs and desired outputs, especially when working with LLM (eg.,Falcon 7B)
+2.	Library : HuggingFacemTransformers,Datasets,BitsandBytes,WandB,PEFT,torch
+3.	Model Selection: Selecting the LLM model that to fine tune (eg.Phi-3,Falcon )
+4.	PEFT Configuration: Configure the PEFT parameters,including the selection of layers and the R value in the LORA.These choices will determine the subset of coefficient that plan to modify
+5.	Quantization (Converting higher memory format to lower memory format): Decide on the level of quantization that want to apply and balancing memory efficiency with the acceptable error rate .
+6.	Training Argument : Define training arguments such as batch size ,optimizer ,learning ratescheduler and checkpoints for your fine-tuning process.
+7.	Checkpointing: Save checkpoints to resume training from specific points if needed
+ 
+
+LORA :
+
+Low-Rank Adaptation (LoRA) is a method designed to streamline the fine-tuning process for large language models (LLMs), especially those with a high number of parameters. Traditional fine-tuning can be computationally intensive and memory-demanding, but LoRA addresses this challenge by adjusting a much smaller set of parameters, making the process more feasible without significantly compromising accuracy.
+Concept of LoRA:
+LoRA is a method that efficiently fine-tunes large language models (LLMs) by using low-rank adaptation. Instead of updating all the parameters of the model, LoRA introduces a few low-rank matrices that approximate the changes needed for fine-tuning.
+
+Efficient Parameter Updates: Instead of modifying all the weights, LoRA tracks changes through additional low-rank matrices.
+
+Reduced Resource Requirement: This significantly reduces the computational and memory burden, making it feasible to fine-tune very large models on limited hardware.
+
+In LoRA, instead of fine-tuning all the weights that make up the weight matrix (W) of the pre-trained large language model, two smaller matrices (A and B) that approximate the update to the matrix are fine-tuned. 
+Mathematical Implementation:
+LORA introduces a low-rank decomposition of weight updates during fine-tuning. Instead of directly updating the weights of the pre-trained model, LORA computes and stores a rank decomposition of the desired weight updates as smaller matrices A and B. This approach reduces computational cost, efficiently stores weight updates, and approximates the desired updates. LORA has applications in fine-tuning pre-trained models, improving model performance, and has the potential to impact various domains.Given a pre-trained weight matrix W of size (m, n), the LORA update can be expressed as:
+W̃ = W + A @ B^T
+Where:
+●	W̃ is the updated weight matrix
+●	A is a matrix of size (m, r)
+●	B is a matrix of size (n, r)
+●	r is the rank of the decomposition (typically much smaller than m and n)
+●	@ represents the matrix multiplication operation
+The key difference from LORA is the introduction of the scaling vects ,which allows for scaling the low-rank update element wise before adding it to the pre-trained weights.
+ 
+Architecture and Workflow
+The LORA architecture involves modifying the pre-trained language model by introducing the low-rank decomposition layers alongside the existing layers.During the forward pass ,the input is processed by the pre-trained model,and the LORA layers apply the low-rank updates to the corresponding weights.During the backward pass ,the gradients are computed and the LORA
+The workflow for using LORA can be summarized as follows:
+1.	Load Pre-trained Model: Load the pre-trained language model that will be adapted using LORA.
+2.	Initialize LORA Layers: Initialize the LORA layers with randomly initialized A and B matrices for each weight matrix in the pre-trained model that needs to be adapted.
+3.	Fine-tune with LORA: Fine-tune the model on the specific task or domain, updating only the LORA matrices (A and B) while keeping the pre-trained weights frozen.
+4.	Apply LORA Updates: During inference, apply the LORA updates to the corresponding pre-trained weights by computing W̃ = W + A @ B^T for each weight matrix.
+5.	Evaluate and Use the Adapted Model: Evaluate the adapted model’s performance on the target task or domain, and use it for inference or further fine-tuning if needed.
+Sample Example
+Let’s consider a simple example where we have a pre-trained weight matrix W of size (4, 3) and want to apply a LORA update with rank r = 2.
+ To compute the updated weight matrix W̃, we perform:
+ 
+Assuming matrix multiplication is implemented as np.matmul, we can compute W̃ as:
+ 
+
+This will output the updated weight matrix W̃, which incorporates the low-rank update from the LORA matrices A and B.
+
+
+
+
+
+
+
+
+Workflow Diagram
+
+  
+
+
+●	First, we load the pre-trained model that we want to adapt using LORA.
+●	We define the LoraConfig object, which specifies the configuration for the LORA adaptation. In this example, we set the rank of the low-rank decomposition to 8, the scaling factor (lora_alpha) to 32, target the query and value modules for LORA, set a dropout rate of 0.1 for LORA, and specify the task type as CAUSAL_LM (Causal Language Modeling).
+●	We use the get_peft_model function from PEFT to prepare the model for LORA fine-tuning. This function modifies the model architecture by introducing the LORA layers according to the specified configuration.
+●	Optionally, we can use the prepare_model_for_int8_training function to quantize the model for efficient inference on resource-constrained devices.
+●	We set up the training loop, using an optimizer like Adam or AdamW. Within the training loop, we perform the forward pass, compute the loss, backpropagate the gradients, and update the LORA parameters (A and B matrices).
+●	After training, we can save the adapted model using the save_pretrained method, which will save the pre-trained model weights along with the LORA parameters.
+●	r=8: This parameter specifies the rank of the low-rank decomposition used in LORA. In the example, we set r=8, which means that the LORA matrices A and B will have a rank of 8. A higher rank value generally leads to better expressivity but also increases the number of trainable parameters. The choice of r is often a trade-off between performance and efficiency.
+●	lora_alpha=32: This parameter is the scaling factor for the LORA updates. It determines the magnitude of the LORA updates relative to the pre-trained weights. A higher value of lora_alpha means that the LORA updates will have a stronger influence on the final weights.
+●	target_modules=["query", "value"]: This parameter specifies the target modules in the pre-trained model where LORA layers should be applied. In the example, we target the query and value modules, which are typically found in the self-attention layers of transformer-based language models. You can also specify other module names or use regular expressions to match multiple modules.
+●	lora_dropout=0.1: This parameter sets the dropout rate for the LORA layers. Dropout is a regularization technique that helps prevent overfitting by randomly dropping out (setting to zero) a fraction of the LORA parameters during training.
+●	bias="none": This parameter specifies how the LORA adaptation should handle the bias terms in the pre-trained model. In the example, we set bias="none", which means that LORA will not adapt the bias terms. You can also set bias="all" to adapt all bias terms, or provide a list of target modules for bias adaptation.
+●	task_type="CAUSAL_LM": This parameter specifies the task type for which you are adapting the pre-trained model. In the example, we set task_type="CAUSAL_LM", which stands for Causal Language Modeling. This setting is appropriate for tasks like text generation or language modeling. If you are adapting the model for a different task, such as sequence classification, you should change this parameter accordingly (e.g., task_type="SEQ_CLS").
+QLORA
+QLORA, short for Quasi-LORA, is an extension of the LORA (Low-Rank Adaptation) technique. It aims to overcome some limitations and enhance performance in specific scenarios. QLORA introduces a slight modification to the LORA formulation while maintaining its computational efficiency and memory-saving advantages.
+Quantization involves reducing the precision of the model weights, for example, from 32-bit floating point to 8-bit integer. This reduction in precision decreases the memory footprint and computational requirements. Here's how QLoRA works:
+
+1. Quantization: Model weights are quantized to lower precision, significantly reducing the storage requirements and speeding up computation.
+2. Low-Rank Adaptation on Quantized Models: LoRA is applied on top of the quantized model. The low-rank matrices A and B are trained in the quantized weight space, maintaining efficiency.
+3. Maintaining Performance: Despite the reduced precision, the combination of quantization and low-rank adaptation ensures that the model retains high performance on the finetuning tasks. Quantization-aware training techniques help in preserving the accuracy of the model.
+4. Implementation: Similar to LoRA, QLoRA requires modifications to the model architecture to insert low-rank matrices. The primary difference is that these operations are performed on quantized weights, making the overall process more efficient.Mathematical Implementation
+●	Quantization:Convert the original weight matrix W (in the real domain) to a lower precision format Wq (in the integer domain).
+●	Low-Rank Matrices:Introduce low-rank matrices A (of size r x d) and B (of size d x r).
+●	Update Calculation:Calculate the low-rank update ΔWq = B * A.
+Final Weight Calculation:The final weights after adaptation are given by: W’q = Wq + ΔWq
+Where W’q is the adapted weight matrix in the lower precision format.
+In QLORA, the weight update is formulated as:
+W̃ = W + diag(s) * (A @ B^T)
+Where:
+●	W̃ is the updated weight matrix
+●	W is the pre-trained weight matrix
+●	A is a matrix of size (m, r)
+●	B is a matrix of size (n, r)
+●	r is the rank of the decomposition
+●	s is a vector of size (m,) representing scaling factors
+●	diag(s) is a diagonal matrix constructed from the vector s
+●	@ represents the matrix multiplication operation
+The key difference from LORA is the introduction of the scaling vector s, which allows for scaling the low-rank update element-wise before adding it to the pre-trained weights.
+Architecture and Workflow
+The QLORA architecture is similar to LORA, with the addition of the scaling vector s. The workflow can be summarized as follows:
+1.	Load Pre-trained Model: Load the pre-trained language model that will be adapted using QLORA.
+2.	Initialize QLORA Layers: Initialize the QLORA layers with randomly initialized A and B matrices, and the scaling vector s for each weight matrix in the pre-trained model that needs to be adapted.
+3.	Fine-tune with QLORA: Fine-tune the model on the specific task or domain, updating the QLORA matrices (A and B) and the scaling vector s, while keeping the pre-trained weights frozen.
+4.	Apply QLORA Updates: During inference, apply the QLORA updates to the corresponding pre-trained weights by computing W̃ = W + diag(s) * (A @ B^T) for each weight matrix.
+5.	Evaluate and Use the Adapted Model: Evaluate the adapted model’s performance on the target task or domain, and use it for inference or further fine-tuning if needed.
+Concept of QLoRA
+1.	Quantization:— Converts model weights and operations from higher precision (e.g., 32-bit floating point) to lower precision (e.g., 8-bit integer), reducing memory usage and computational load.
+2.	Low-Rank Adaptation:— Similar to LoRA, QLoRA uses low-rank matrices to approximate the necessary updates for fine-tuning, minimizing the number of parameters that need to be adjusted.
+Advantages of QLORA
+1.	Improved Expressivity: By introducing the scaling vector s, QLORA allows for element-wise scaling of the low-rank update, potentially providing better expressivity and adaptation capabilities compared to LORA.
+2.	Computational Efficiency: Like LORA, QLORA retains the computational and memory efficiency advantages of low-rank updates, making it suitable for adapting large language models with limited resources.
+3.	Flexibility: The scaling vector s introduces an additional degree of freedom during fine-tuning, allowing for more flexibility in adapting the pre-trained model to the target task or domain.
+Implementation in Large Language Models (LLMs)
+QLORA can be applied to adapt large pre-trained language models, such as GPT, BERT, or T5, to specific tasks or domains. The implementation process typically involves:
+1.	Loading the pre-trained LLM.
+2.	Initializing the QLORA layers (A, B, and s) for the target weight matrices in the LLM.
+3.	Fine-tuning the LLM on the target task or domain, updating the QLORA parameters (A, B, and s) while keeping the pre-trained weights frozen.
+4.	During inference, applying the QLORA updates to the pre-trained weights using the learned QLORA parameters.
+Libraries like PEFT (Parameter-Efficient Fine-Tuning) provide implementations of QLORA and make it easier to adapt pre-trained LLMs using QLORA.
+How QLoRA Works
+●	Quantization of Pre-trained Model:— Begin with a pre-trained model where the weights are typically in a high-precision format (e.g., FP32). Quantize these weights to a lower precision format (e.g., INT8).
+●	Introduction of Low-Rank Matrices: Introduce low-rank matrices A and B to capture the necessary updates to the quantized weights. The rank R of these matrices is much smaller than the original weight dimensions.
+●	Low-Rank Update: Compute the update to the weights using the product of the low-rank matrices.
+●	Combining Quantized Weights and Updates:The final adapted weights are a combination of the quantized weights and the product of the low-rank matrices.
+Sample Example
+Let’s consider the same example as before, with a pre-trained weight matrix W of size (4, 3) and a QLORA update with rank r = 2.
+ 
+
+To compute the updated weight matrix W̃ using QLORA, we perform:
+ 
+Assuming matrix multiplication is implemented as np.matmul, we can compute W̃ as:
+ 
+This will output the updated weight matrix W̃, which incorporates the QLORA update from the matrices A and B, scaled element-wise by the vector s.
+Workflow Diagram
+Here’s a visual representation of the QLORA workflow:
+ 
+The QLORA technique introduces an additional scaling vector to the LORA formulation, providing more flexibility in fine-tuning the adapted model. This modification can potentially improve the model’s performance on certain tasks or domains while retaining the computational and memory efficiency advantages of LORA.
+ 
+1.	In the LoraConfig, we specify peft_type="QLORA" to indicate that we want to use QLORA instead of LORA.
+2.	The get_peft_model function from PEFT will automatically initialize the QLORA layers with the scaling vector s based on the provided configuration.
+During fine-tuning, the PEFT library will optimize the QLORA parameters (A, B, and s) while keeping the pre-trained weights frozen. The diag(s) * (A @ B^T) computation is handled internally by the PEFT library.
+When saving the adapted model using save_pretrained, the QLORA parameters (A, B, and s) will be saved along with the pre-trained model weights.
+●	r=8: This parameter specifies the rank of the low-rank decomposition used in QLORA. In this example, we set r=8, which means that the QLORA matrices A and B will have a rank of 8. A higher rank value generally leads to better expressivity but also increases the number of trainable parameters. The choice of r is often a trade-off between performance and efficiency.
+●	lora_alpha=32: This parameter is the scaling factor for the LORA updates. It determines the magnitude of the LORA updates relative to the pre-trained weights. A higher value of lora_alpha means that the LORA updates will have a stronger influence on the final weights.
+●	target_modules=["query", "value"]: This parameter specifies the target modules in the pre-trained model where QLORA layers should be applied. In the example, we target the query and value modules, which are typically found in the self-attention layers of transformer-based language models. You can also specify other module names or use regular expressions to match multiple modules.
+●	lora_dropout=0.1: This parameter sets the dropout rate for the QLORA layers. Dropout is a regularization technique that helps prevent overfitting by randomly dropping out (setting to zero) a fraction of the QLORA parameters during training.
+●	bias="none": This parameter specifies how the QLORA adaptation should handle the bias terms in the pre-trained model. In the example, we set bias="none", which means that QLORA will not adapt the bias terms. You can also set bias="all" to adapt all bias terms, or provide a list of target modules for bias adaptation.
+●	task_type="CAUSAL_LM": This parameter specifies the task type for which you are adapting the pre-trained model. In the example, we set task_type="CAUSAL_LM", which stands for Causal Language Modeling. This setting is appropriate for tasks like text generation or language modeling. If you are adapting the model for a different task, such as sequence classification, you should change this parameter accordingly (e.g., task_type="SEQ_CLS").
+●	peft_type="QLORA": This parameter specifies that we want to use QLORA (Quasi-LORA) as the parameter-efficient fine-tuning technique, instead of the regular LORA. This is the key parameter that distinguishes the QLORA configuration from the LORA configuration.
+●	When you define the qlora_config with these parameters, the PEFT library will initialize the QLORA layers with the specified rank, scaling factor, target modules, dropout rate, and bias handling. Additionally, it will introduce the scaling vector s for element-wise scaling of the low-rank updates, as per the QLORA formulation.
+●	During fine-tuning, the PEFT library will optimize the QLORA parameters (A, B, and s) while keeping the pre-trained weights frozen. The diag(s) * (A @ B^T) computation is handled internally by the PEFT library, applying the element-wise scaling of the low-rank updates according to the QLORA technique.
+
+
